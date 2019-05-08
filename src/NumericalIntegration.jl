@@ -106,7 +106,7 @@ end
 """
     integrate(x::AbstractVector, y::AbstractVector, ::SimpsonEven)
 
-Use Simpson's rule, assuming evenly spaced vector x. 
+Use Simpson's rule, assuming evenly spaced vector x.
 """
 function integrate(x::AbstractVector, y::AbstractVector, ::SimpsonEven)
     @assert length(x) == length(y) "x and y vectors must be of the same length!"
@@ -176,6 +176,30 @@ function integrate(x::AbstractVector, y::AbstractVector, m::RombergEven)
     @inbounds return rombaux[maxsteps, prevrow]
 end
 
+"""
+    integrate(X::NTuple{N,AbstractVector}, Y::AbstractArray{T,N}, method, cache=nothing)
+
+Given an n-dimensional grid of values, compute the total integral along each dim
+"""
+function integrate(X::NTuple{N,AbstractVector}, Y::AbstractArray{T,N}, M::IntegrationMethod,
+                   cache::Union{AbstractVector{T}, Nothing}=nothing) :: T where {T,N}
+    dims = size(Y)
+    n = dims[end]
+    if N == 1
+        return integrate(X[1], Y, M)
+    else
+        if cache == nothing
+            cache = Vector{T}(undef, n)
+        end
+        x = X[1:N-1]
+        @inbounds for i in 1:n
+            cache[i] = integrate(x, selectdim(Y,N,i), M)
+        end
+        return integrate(X[end], cache, M)
+    end
+end
+
+
 
 # cumulative integrals
 
@@ -242,11 +266,12 @@ function cumul_integrate(x::AbstractVector, y::AbstractMatrix, M::IntegrationMet
     return hcat([cumul_integrate(x,selectdim(y,dims,j),M) for j=1:size(y,dims)]...)
 end
 
-
 #default behaviour
 integrate(x::AbstractVector, y::AbstractVector) = integrate(x, y, Trapezoidal())
 
 integrate(x::AbstractVector, y::AbstractMatrix; dims=2) = integrate(x, y, Trapezoidal(); dims=dims)
+
+integrate(X::NTuple, Y::AbstractArray) = integrate(X, Y, Trapezoidal())
 
 cumul_integrate(x::AbstractVector, y::AbstractVector) = cumul_integrate(x, y, Trapezoidal())
 
